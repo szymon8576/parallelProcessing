@@ -1,0 +1,86 @@
+#include <stdio.h>
+#include <omp.h>
+#include <time.h>
+#include <math.h>
+#include <iterator>
+
+#define MAX 45000000
+#define MIN 2
+
+bool matrix[MAX + 1], final_matrix[MAX + 1], enable_debug = false;
+
+int main(int argc, char* argv[])
+{
+
+	std::fill(std::begin(matrix), std::end(matrix), 0);
+	std::fill(std::begin(final_matrix), std::end(final_matrix), 1);
+
+	final_matrix[0] = 0;
+	final_matrix[1] = 0;
+	
+	int sqr_variable = (int)pow(MAX, 1.0 / 2);
+
+#pragma omp parallel for num_threads(2)
+	for (int num = 2; num <= sqr_variable; num++)
+	{
+		
+		bool is_prime = true;
+		for (int i = 2; i <= pow(num, 1.0 / 2); i++)
+		{
+			if (num%i == 0)
+			{
+				is_prime = false;
+				break;
+			}
+		}
+		if (is_prime)
+		{
+			matrix[num] = 1;
+		}
+	}
+
+	
+	int chunk_size = 1000000;
+	#pragma omp parallel for schedule(static, 1) num_threads(4)
+	for (int chunk_num = 0; chunk_num <= (MAX-MIN)/chunk_size ; chunk_num++)
+	{
+		int my_start = MIN + chunk_num * chunk_size;
+		int my_end = my_start+chunk_size-1;
+
+		if (my_end > MAX)my_end = MAX;
+
+		for (int i = 0; i <= sqr_variable; i++)
+		{
+
+			if (matrix[i])
+			{
+				int closest_num = my_start;
+				while (closest_num%i != 0)closest_num++;
+				
+			
+				for (int j = closest_num; j <= my_end; j = j + i)
+				{
+					if (j == i)continue;
+					final_matrix[j] = 0;
+				}
+			}
+		}
+	}
+
+
+	int sum = 0;
+	for (int i = MIN-1; i <= MAX; i++)
+		if (final_matrix[i])sum++;
+
+	printf("total num of primes = %d \n", sum);
+
+	if (enable_debug)
+	{
+
+		for (int i = MIN-1; i <= MAX; i++)
+		{
+			if (final_matrix[i]) printf("%d,", i);
+		}
+	}
+	
+}
